@@ -1,0 +1,11 @@
+name: astrbot_plugin_comfyui
+desc: 利用 LLM 的 function-calling 功能，调用本地启动的 ComfyUI 服务实现文生图功能
+help: <1> function-calling 接收参数：提示词(prompt)，图片的高度(img_height)，图片的宽度(img_width)。
+      <2> 如果图片的高度、宽度信息没有出现在提示词中，则默认使用该插件配置的图片高度、宽度。
+      <3> 例如对大模型发出指令：
+            画一只小狗，高度：1024，宽度：1024，此时大模型触发　function-calling，接收到入参　prompt=a cute puppy，img_height=1024，img_width=1024;
+            画一只宽高比为768*1024的小狗，此时大模型触发　function-calling，接收到入参　prompt=a cute puppy，img_height=768，img_width=1024;
+            画一只小狗，此时大模型触发　function-calling，接收到入参　prompt=a cute puppy;
+version: v1.0.0
+author: fanfanfan
+repo: https://github.com/yuan199696/astrbot_plugin_comfyui

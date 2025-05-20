@@ -1,0 +1,343 @@
+{
+  "2": {
+    "inputs": {
+      "text": [
+        "32",
+        0
+      ],
+      "clip": [
+        "11",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码器"
+    }
+  },
+  "3": {
+    "inputs": {
+      "text": [
+        "33",
+        0
+      ],
+      "clip": [
+        "11",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码器"
+    }
+  },
+  "4": {
+    "inputs": {
+      "seed": 65484996433017,
+      "steps": [
+        "13",
+        0
+      ],
+      "cfg": [
+        "13",
+        1
+      ],
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "denoise": 1,
+      "model": [
+        "11",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": [
+        "17",
+        0
+      ],
+      "height": [
+        "17",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "空Latent"
+    }
+  },
+  "6": {
+    "inputs": {
+      "samples": [
+        "4",
+        0
+      ],
+      "vae": [
+        "11",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "11": {
+    "inputs": {
+      "ckpt_name": "waiNSFWIllustrious_v140.safetensors"
+    },
+    "class_type": "Checkpoint Loader with Name (Image Saver)",
+    "_meta": {
+      "title": "Checkpoint Loader with Name (Image Saver)"
+    }
+  },
+  "13": {
+    "inputs": {
+      "steps": 30,
+      "cfg": 7
+    },
+    "class_type": "StepsAndCfg",
+    "_meta": {
+      "title": "Steps & Cfg"
+    }
+  },
+  "17": {
+    "inputs": {
+      "Width": 1024,
+      "Height": 1360,
+      "Batch": 1,
+      "Landscape": false,
+      "HiResMultiplier": 1.5
+    },
+    "class_type": "CanvasCreatorAdvanced",
+    "_meta": {
+      "title": "Create Canvas Advanced"
+    }
+  },
+  "18": {
+    "inputs": {
+      "tile_size": 512,
+      "overlap": 64,
+      "temporal_size": 64,
+      "temporal_overlap": 8,
+      "samples": [
+        "20",
+        0
+      ],
+      "vae": [
+        "11",
+        2
+      ]
+    },
+    "class_type": "VAEDecodeTiled",
+    "_meta": {
+      "title": "VAE分块解码"
+    }
+  },
+  "19": {
+    "inputs": {
+      "tile_size": 512,
+      "overlap": 64,
+      "temporal_size": 64,
+      "temporal_overlap": 8,
+      "pixels": [
+        "25",
+        0
+      ],
+      "vae": [
+        "11",
+        2
+      ]
+    },
+    "class_type": "VAEEncodeTiled",
+    "_meta": {
+      "title": "VAE分块编码"
+    }
+  },
+  "20": {
+    "inputs": {
+      "seed": 467163282624226,
+      "steps": 20,
+      "cfg": [
+        "13",
+        1
+      ],
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "denoise": 0.4,
+      "model": [
+        "11",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "19",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "25": {
+    "inputs": {
+      "resize_scale": [
+        "17",
+        5
+      ],
+      "resize_method": "nearest",
+      "upscale_model": [
+        "27",
+        0
+      ],
+      "image": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "UpscaleImageByModelThenResize",
+    "_meta": {
+      "title": "Upscale Image By Model Then Resize"
+    }
+  },
+  "27": {
+    "inputs": {
+      "model_name": "RealESRGAN_x4plus.pth"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "放大模型加载器"
+    }
+  },
+  "28": {
+    "inputs": {
+      "method": "Mean",
+      "src_image": [
+        "18",
+        0
+      ],
+      "ref_image": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "ImageColorTransferMira",
+    "_meta": {
+      "title": "Color Transfer"
+    }
+  },
+  "29": {
+    "inputs": {
+      "filename": "%time_%seed",
+      "path": "%date",
+      "extension": "png",
+      "steps": [
+        "13",
+        0
+      ],
+      "cfg": [
+        "13",
+        1
+      ],
+      "modelname": [
+        "11",
+        3
+      ],
+      "sampler_name": "",
+      "scheduler": "normal",
+      "positive": [
+        "32",
+        0
+      ],
+      "negative": [
+        "33",
+        0
+      ],
+      "seed_value": 1,
+      "width": [
+        "17",
+        0
+      ],
+      "height": [
+        "17",
+        1
+      ],
+      "lossless_webp": true,
+      "quality_jpeg_or_webp": 100,
+      "optimize_png": false,
+      "counter": 0,
+      "denoise": 1,
+      "clip_skip": 0,
+      "time_format": "%Y-%m-%d-%H%M%S",
+      "save_workflow_as_json": false,
+      "embed_workflow": true,
+      "additional_hashes": "",
+      "download_civitai_data": false,
+      "easy_remix": true,
+      "images": [
+        "28",
+        0
+      ]
+    },
+    "class_type": "Image Saver",
+    "_meta": {
+      "title": "Image Saver"
+    }
+  },
+  "32": {
+    "inputs": {
+      "text": "nipples,spread pussy,the vagina's muscular walls are lined with mucous membranes,Inner vaginal white pulp,souryuu asuka langley, The scene is a bridge, a cherry blossom, a river,standing and lift a leg, the composition angle is to take a back shot from the sole of the raised leg's foot,looking at camera, the bottom of the foot, the character is required to be slender, especially the thigh must be very thin, medium chest size, the height of a small person between 150cm and 160cm, wearing a kimono, the skin is soft, white, tender, red and fragile, the pupil is the shape of a platy blossom, the face of the sun is illuminated by the sun, no watermarks and words should appear, no unknown shadows on the skin, the shadow junction on the skin is achieved through gradual change, no character strokes, light halo, ethereal glow, intricate details, fine details, artistic, fine art, close-up shot, Japanese style, shy expression, ribbon"
+    },
+    "class_type": "TextBoxMira",
+    "_meta": {
+      "title": "Text Box"
+    }
+  },
+  "33": {
+    "inputs": {
+      "text": "bad quality,worst quality,worst detail,sketch,watermark"
+    },
+    "class_type": "TextBoxMira",
+    "_meta": {
+      "title": "Text Box"
+    }
+  },
+  "36": {
+    "inputs": {
+      "images": [
+        "28",
+        0
+      ]
+    },
+    "class_type": "SaveImageWebsocket",
+    "_meta": {
+      "title": "保存图像到网络接口"
+    }
+  }
+}

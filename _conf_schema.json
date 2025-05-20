@@ -1,0 +1,37 @@
+{
+    "server_address": {
+        "description": "ComfyUI 服务端 IP、端口",
+        "type": "string",
+        "hint": "请首先启动本地 ComfyUI 服务，并打开 ComfyUI 服务的开发者模式，当前插件会自动与 ComfyUI 服务进行 WebSocket 连接 ",
+        "obvious_hint": true,
+        "default": "127.0.0.1:8188"
+    },
+    "sub_config": {
+        "description": "生成图片相关参数",
+        "type": "object",
+        "items": {
+            "steps": {
+                "description": "迭代次数",
+                "type": "int",
+                "default": 20
+            },
+            "width": {
+                "description": "图片宽度",
+                "type": "int",
+                "hint": "注意AI绘画模型本身支持的图片宽高比",
+                "default": 768
+            },
+            "height": {
+                "description": "图片高度",
+                "type": "int",
+                "hint": "注意AI绘画模型本身支持的图片宽高比",
+                "default": 1024
+            },
+            "negative_prompt": {
+                "description": "反向提示词",
+                "type": "string",
+                "default": "watermark,NSFW"
+            }
+        }
+    }
+}
