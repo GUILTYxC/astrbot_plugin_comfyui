@@ -16,8 +16,8 @@ current_directory = os.path.dirname(current_file_path)
 img_path = os.path.join(current_directory, 'output', 'temp.png')
 
 
-@register("astrbot_plugin_comfyui", "fanfanfan", "利用本地启动的 ComfyUI 服务实现文生图功能", "1.0.0",
-          "https://github.com/yuan199696/astrbot_plugin_comfyui")
+@register("astrbot_plugin_comfyui", "guilty", "调用ComfyUI 服务进行文生图", "1.0.0",
+          "https://github.com/GUILTYxC/astrbot_plugin_comfyui")
 class ComfyUIPlugin(Star):
     def __init__(self, context: Context, config: dict):
         super().__init__(context)
