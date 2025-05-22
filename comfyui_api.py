@@ -32,7 +32,8 @@ class ComfyUI:
         if self._initialized:
             return
         ws_url = f"ws://{self.server_address}/ws?clientId={self.client_id}"
-        self.ws = await websockets.connect(ws_url, ping_interval=None)
+        # 最大帧大小：10MB 禁用内部队列限制
+        self.ws = await websockets.connect(ws_url,ping_interval=None,max_size=10 * 1024 * 1024, max_queue=None  )
         await self.ws.ping()
         self._initialized = True
         print("✅ WebSocket 已连接")
