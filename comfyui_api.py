@@ -1,10 +1,11 @@
 import random
 import os
-import websocket
 import json
 import urllib.request
 import urllib.parse
 from astrbot.api import logger
+import aiohttp
+import websockets
 
 # 获取当前文件的绝对路径
 current_file_path = os.path.abspath(__file__)
@@ -24,12 +25,17 @@ class ComfyUI:
         self.width = config.get("sub_config").get("width")
         self.height = config.get("sub_config").get("height")
         self.negative_prompt = config.get("sub_config").get("negative_prompt")
-
-        # 初始化ComfyUI Websocket 客户端，作用是一直与ComfyUI服务端保持连接，实施获取服务端生成的图片（包括节点的执行顺序也可以实施获取到）
-        self.ws = websocket.WebSocket()
-        self.ws.connect("ws://{}/ws?clientId={}".format(self.server_address, client_id))
-        logger.info(f"初始化 ComfyUI Websocket 客户端：{self.ws.status}")
-
+        self.ws = None
+        self._initialized = False
+        
+    async def init_async(self):
+        if self._initialized:
+            return
+        ws_url = f"ws://{self.server_address}/ws?clientId={self.client_id}"
+        self.ws = await websockets.connect(ws_url, ping_interval=None)
+        await self.ws.ping()
+        self._initialized = True
+        print("✅ WebSocket 已连接")
     # 生成绘图任务
     def queue_prompt(self, prompt):
         p = {"prompt": prompt, "client_id": self.client_id}
@@ -37,6 +43,17 @@ class ComfyUI:
         req = urllib.request.Request("http://{}/prompt".format(self.server_address), data=data)
         return json.loads(urllib.request.urlopen(req).read())
 
+    async def a_queue_prompt(self, prompt):
+        url = f"http://{self.server_address}/prompt"
+        payload = {
+            "prompt": prompt,
+            "client_id": self.client_id
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=payload) as response:
+                response.raise_for_status()  # 如果服务器返回错误码会抛出异常
+                return await response.json()
     # 预览图片
     def get_image(self, filename, subfolder, folder_type):
         data = {"filename": filename, "subfolder": subfolder, "type": folder_type}
@@ -50,13 +67,16 @@ class ComfyUI:
             return json.loads(response.read())
 
     # 通过与ComfyUI建立的WebSocket连接中，实时获取绘图任务中的数据（当前正在执行哪个节点执行 以及 最终生成的图片）
-    def get_images(self, prompt):
-        prompt_id = self.queue_prompt(prompt)['prompt_id']
+    async def get_images(self, prompt):
+        # prompt_id = self.queue_prompt(prompt)['prompt_id']
+        # 异步执行
+        resp = await self.a_queue_prompt(prompt)
+        prompt_id = resp['prompt_id']
         logger.info(f"创建任务完成，prompt_id:{prompt_id}")
         output_images = {}
         current_node = ""
         while True:
-            out = self.ws.recv()
+            out = await self.ws.recv()
             # 从打印日志中可以实时记录节点的执行过程以及生成的图片进度
             # print(f"out:{out}")
             if out is None:
@@ -65,8 +85,9 @@ class ComfyUI:
                 break
 
             if isinstance(out, str):
-                # logger.info(f"接收到数据,进行处理")
+                
                 message = json.loads(out)
+                # logger.info(f"接收到数据,进行处理:{message}")
                 if message['type'] == 'executing':
                     data = message['data']
                     if data['prompt_id'] == prompt_id:
@@ -74,7 +95,7 @@ class ComfyUI:
                             break  # Execution is done
                         else:
                             current_node = data['node']
-                            # logger.info(f"正在执行节点：{current_node}")
+                            logger.info(f"正在执行节点：{current_node}")
             else:
                 # logger.info(f"接收到非str数据,进行处理")
                 # logger.info(f"正在执行节点：{current_node}")
@@ -87,7 +108,7 @@ class ComfyUI:
         return output_images
 
     # 封装文生图调用入口，prompt: 正向提示词
-    def text_2_img(self, prompt, img_width, img_height,safe=False):
+    async def text_2_img(self, prompt, img_width, img_height,safe=False):
         if img_width is None:
             img_width = self.width
         if img_height is None:
@@ -114,7 +135,7 @@ class ComfyUI:
         logger.info(f"Negative Prompt:{self.negative_prompt}")
         # 调用以上 get_images 方法生成图片
         logger.info(f"已加载json:{json_data}")
-        images = self.get_images(json_data)
+        images =await self.get_images(json_data)
 
         for node_id in images:
             for image_data in images[node_id]:

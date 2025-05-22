@@ -7,5 +7,5 @@ help: <1> function-calling 接收参数：提示词(prompt)，图片的高度(im
             画一只宽高比为768*1024的小狗，此时大模型触发　function-calling，接收到入参　prompt=a cute puppy，img_height=768，img_width=1024;
             画一只小狗，此时大模型触发　function-calling，接收到入参　prompt=a cute puppy;
 version: v1.0.0
-author: fanfanfan
-repo: https://github.com/yuan199696/astrbot_plugin_comfyui
+author: guilty
+repo: https://github.com/GUILTYxC/astrbot_plugin_comfyui

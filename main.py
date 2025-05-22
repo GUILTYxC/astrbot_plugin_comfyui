@@ -1,11 +1,15 @@
 import uuid
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
+from dataclasses import dataclass, asdict
 from astrbot.api.star import Context, Star, register
 from astrbot.api.message_components import *
 from .comfyui_api import ComfyUI
 from astrbot.api import llm_tool, logger
 from .oss import upload_public_file
 import random
+import json
+from . import platform_type_constants
+
 
 
 # 获取当前文件的绝对路径
@@ -15,6 +19,11 @@ current_directory = os.path.dirname(current_file_path)
 # 图片生成存放目录
 img_path = os.path.join(current_directory, 'output', 'temp.png')
 
+def default_serializer(obj):
+    try:
+        return obj.__dict__
+    except AttributeError:
+        return str(obj)  # fallback：直接转字符串
 
 @register("astrbot_plugin_comfyui", "guilty", "调用ComfyUI 服务进行文生图", "1.0.0",
           "https://github.com/GUILTYxC/astrbot_plugin_comfyui")
@@ -27,12 +36,16 @@ class ComfyUIPlugin(Star):
         except Exception:
             logger.error(f"【初始化 ComfyUI Websocket 客户端失败，请注意是否已开启 ComfyUI 服务端】")
 
+    async def init_async(self):
+        await self.comfy_ui.init_async()
+
     # async def initialize(self):
     #     self.context.activate_llm_tool("comfyui_txt2img")
 
     # @llm_tool(name="comfyui_txt2img")
     @filter.command("draw",alias={'约稿'})   
     async def comfyui_txt2img(self, event: AstrMessageEvent, prompt: str) -> MessageEventResult:
+        
         '''AI painting based on the prompts entered by the user.
 
         Args:
@@ -53,22 +66,27 @@ class ComfyUIPlugin(Star):
             "虽然很麻烦，不过...看在是你的份上就破例一次好了。",
             "啊啊啊好烦哦！知道了知道了～马上给你画就是了！"
         ]
-        safe = event.get_message_str().startswith("约稿")
+        platform_name =  event.get_platform_name()
+        # 判断平台
+        safe = platform_name == platform_type_constants.QQ
         prompt = event.get_message_str().replace("draw", "", 1)
         # 同时去除“约稿”，给qq用
         prompt = prompt.replace("约稿", "", 1)
         prompt += ',masterpiece, best quality, highly detailed'
         # 如果是qq渠道,正向提示词增加安全词
-        if event.get_message_str().startswith("约稿"):
+        if safe:
             prompt = 'General, ' + prompt
         logger.info(f"prompt:{prompt}")
         message = random.choice(CUTE_MESSAGES).format(user_name=user_name)
+        #  发送一条回应
         yield event.plain_result(message)
-    
+
+        # 初始化异步websocket客户端
+        await self.init_async()
         if safe:
-            img = self.comfy_ui.text_2_img(prompt, None,None,True)
+            img =await self.comfy_ui.text_2_img(prompt, None,None,True)
         else:
-            img = self.comfy_ui.text_2_img(prompt, None,None,False)
+            img =await self.comfy_ui.text_2_img(prompt, None,None,False)
         # 将图片保存到当前output目录下
         with open(img_path, 'wb') as fp:
             fp.write(img)
@@ -81,10 +99,25 @@ class ComfyUIPlugin(Star):
             access_key="admin",
             secret_key="admin123456")
         file_url = "http://123.56.117.196:9000/image/ai/" + uuid_name + ".png"
+        
+        # 如果是钉钉，发送oss地址
+        if platform_name == platform_type_constants.DingDing:
+            chain_msg = Image.fromURL(file_url)
+        else:
+            chain_msg = Image.fromFileSystem(img_path)
         chain = [
-            # Image.fromURL(file_url)
-            Image.fromFileSystem(img_path)
+            chain_msg    
         ]
         logger.info(f"将图片{file_url}发送给用户...")
         yield event.chain_result(chain)
         logger.info(f"图片{file_url}发送成功！")
+
+
+
+    @filter.command("eugeo",alias={'测试'})
+    async def eugeo(self, event: AstrMessageEvent, prompt: str) -> MessageEventResult:
+        logger.info(f"收到用户请求：平台：{event.get_platform_name()}")
+        yield event.plain_result(f"收到用户请求：平台：{event.get_platform_name()}")
+        
+        yield event.plain_result(f"收到用户请求：{json.dumps(asdict(event.platform_meta))}")
+
