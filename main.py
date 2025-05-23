@@ -1,16 +1,19 @@
 import uuid
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
-from dataclasses import dataclass, asdict
-from astrbot.api.star import Context, Star, register
-from astrbot.api.message_components import *
-from .comfyui_api import ComfyUI
-from astrbot.api import llm_tool, logger
-from .oss import upload_public_file
+import asyncio
+import os
 import random
 import json
+from dataclasses import asdict
+from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
+from astrbot.api.star import Context, Star, register
+from astrbot.api.message_components import *
+from astrbot.api import logger
+from .comfyui_api import ComfyUI
+from .oss import upload_public_file
 from . import platform_type_constants
+from astrbot.core.message.message_event_result import MessageChain
 
-
+# 有队列机制的版本
 
 # 获取当前文件的绝对路径
 current_file_path = os.path.abspath(__file__)
@@ -19,17 +22,14 @@ current_directory = os.path.dirname(current_file_path)
 # 图片生成存放目录
 img_path = os.path.join(current_directory, 'output', 'temp.png')
 
-def default_serializer(obj):
-    try:
-        return obj.__dict__
-    except AttributeError:
-        return str(obj)  # fallback：直接转字符串
-
 @register("astrbot_plugin_comfyui", "guilty", "调用ComfyUI 服务进行文生图", "1.0.0",
           "https://github.com/GUILTYxC/astrbot_plugin_comfyui")
 class ComfyUIPlugin(Star):
     def __init__(self, context: Context, config: dict):
         super().__init__(context)
+        self.task_queue = asyncio.Queue()
+        self.worker_started = False
+
         client_id = str(uuid.uuid4())
         try:
             self.comfy_ui = ComfyUI(config, client_id)
@@ -37,87 +37,101 @@ class ComfyUIPlugin(Star):
             logger.error(f"【初始化 ComfyUI Websocket 客户端失败，请注意是否已开启 ComfyUI 服务端】")
 
     async def init_async(self):
+        if not self.worker_started:
+            asyncio.create_task(self.worker())
+            self.worker_started = True
         await self.comfy_ui.init_async()
 
-    # async def initialize(self):
-    #     self.context.activate_llm_tool("comfyui_txt2img")
+    async def worker(self):
+        logger.info("Worker 启动，等待任务中...")
+        while True:
+            task = await self.task_queue.get()
+            try:
+                await self.handle_task(task)
+            except Exception as e:
+                logger.error(f"任务处理失败: {e}")
+            self.task_queue.task_done()
+            logger.info(f"剩余任务数量{self.task_queue.qsize()}")
 
-    # @llm_tool(name="comfyui_txt2img")
-    @filter.command("draw",alias={'约稿'})   
+
+
+
+
+    async def handle_task(self, task):
+        event = task['event']
+        prompt = task['prompt']
+        safe = task['safe']
+        user_name = task['user_name']
+
+        start_msg = event.make_result().message(f"🎨 轮到你啦，{user_name}！正在生成图像，请稍等...")
+        await event.send(start_msg)
+
+        try:
+            img = await self.comfy_ui.text_2_img(prompt, None, None, safe)
+
+            with open(img_path, 'wb') as fp:
+                fp.write(img)
+
+            uuid_name = uuid.uuid4().hex
+            upload_public_file(
+                file_path=img_path,
+                bucket_name="image",
+                object_name="ai/" + uuid_name + ".png",
+                endpoint_url="http://123.56.117.196:9000",
+                access_key="admin",
+                secret_key="admin123456"
+            )
+            file_url = f"http://123.56.117.196:9000/image/ai/{uuid_name}.png"
+
+            platform_name = event.get_platform_name()
+            if platform_name == platform_type_constants.DingDing:
+                img_result = event.image_result(file_url)
+                # chain_msg = Image.fromURL(file_url)
+            else:
+                img_result = event.image_result(img_path)
+                # chain_msg = Image.fromFileSystem(img_path)
+
+            logger.info(f"将图片 {file_url} 发送给用户...")
+            # await event.send_chain([chain_msg])
+            await event.send(img_result)
+            logger.info(f"图片 {file_url} 发送成功！")
+
+        except Exception as e:
+            # 发送异常消息
+            err_msg = event.make_result().message(f"❌ 生成图像失败：{str(e)}")
+            await event.send(err_msg)
+
+
+    @filter.command("draw", alias={'约稿'})
     async def comfyui_txt2img(self, event: AstrMessageEvent, prompt: str) -> MessageEventResult:
-        
-        '''AI painting based on the prompts entered by the user.
+        await self.init_async()  # ← 确保初始化 WebSocket 和启动 worker
 
-        Args:
-            prompt(string): A prompt for text to image,if the user inputs Chinese prompts, they need to be translated into English prompts that are closely aligned with the specialized terms used for AI painting, such as the prompts used when creating AI art with Midjourney.
-            img_width(number): The width of the image generated by AI painting. Optional parameter, this does not need to be parsed when there is no specified information about the image width.
-            img_height(number): The height of the image generated by AI painting. Optional parameter, this does not need to be parsed when there is no specified information about the image height.
-        '''
         user_name = event.get_sender_name()
-        CUTE_MESSAGES = [
-            "收到啦～{user_name}稍等片刻，少女正在努力画画中...🎨",
-            "{user_name}别着急哦～我这就去画给你看！✨",
-            "哇呜～收到你的请求啦！马上为你绘制一幅美美的画～🖌️",
-            "{user_name}想要什么风格的画呢？让我猜猜...先准备画布啦～📘",
-            "哼～又来让我画画，好吧...本小姐勉为其难地接下这个任务！",
-            "这种小事不用你提醒啦！我早就准备好画布了！",
-            "真是的...每次都找我帮忙，也不说声请，请我喝杯奶茶再继续！",
-            "你以为画图很容易吗？给点时间啦，别催了！",
-            "虽然很麻烦，不过...看在是你的份上就破例一次好了。",
-            "啊啊啊好烦哦！知道了知道了～马上给你画就是了！"
-        ]
-        platform_name =  event.get_platform_name()
-        # 判断平台
+        platform_name = event.get_platform_name()
         safe = platform_name == platform_type_constants.QQ
-        prompt = event.get_message_str().replace("draw", "", 1)
-        # 同时去除“约稿”，给qq用
-        prompt = prompt.replace("约稿", "", 1)
+
+        prompt = event.get_message_str().replace("draw", "", 1).replace("约稿", "", 1)
         prompt += ',masterpiece, best quality, highly detailed'
-        # 如果是qq渠道,正向提示词增加安全词
         if safe:
             prompt = 'General, ' + prompt
+
         logger.info(f"prompt:{prompt}")
-        message = random.choice(CUTE_MESSAGES).format(user_name=user_name)
-        #  发送一条回应
-        yield event.plain_result(message)
 
-        # 初始化异步websocket客户端
-        await self.init_async()
-        if safe:
-            img =await self.comfy_ui.text_2_img(prompt, None,None,True)
-        else:
-            img =await self.comfy_ui.text_2_img(prompt, None,None,False)
-        # 将图片保存到当前output目录下
-        with open(img_path, 'wb') as fp:
-            fp.write(img)
-        logger.info("将图片上传到oss")
-        uuid_name = uuid.uuid4().hex
-        upload_public_file(file_path=img_path,
-            bucket_name="image",
-            object_name="ai/" + uuid_name + ".png",
-            endpoint_url="http://123.56.117.196:9000",  # 用你的服务器 IP 替换
-            access_key="admin",
-            secret_key="admin123456")
-        file_url = "http://123.56.117.196:9000/image/ai/" + uuid_name + ".png"
-        
-        # 如果是钉钉，发送oss地址
-        if platform_name == platform_type_constants.DingDing:
-            chain_msg = Image.fromURL(file_url)
-        else:
-            chain_msg = Image.fromFileSystem(img_path)
-        chain = [
-            chain_msg    
-        ]
-        logger.info(f"将图片{file_url}发送给用户...")
-        yield event.chain_result(chain)
-        logger.info(f"图片{file_url}发送成功！")
+        position = self.task_queue.qsize() + 1
+        yield event.plain_result(f"🎨 {user_name}，你的画图请求已加入队列，当前排队位置：{position}，请稍候...")
+        logger.info("向队列中加入任务")
+        await self.task_queue.put({
+            "event": event,
+            "prompt": prompt,
+            "safe": safe,
+            "user_name": user_name
+        })
+        logger.info(f"队列已添加任务，当前任务数量为{self.task_queue.qsize()}")
 
+        return
 
-
-    @filter.command("eugeo",alias={'测试'})
+    @filter.command("eugeo", alias={'测试'})
     async def eugeo(self, event: AstrMessageEvent, prompt: str) -> MessageEventResult:
         logger.info(f"收到用户请求：平台：{event.get_platform_name()}")
         yield event.plain_result(f"收到用户请求：平台：{event.get_platform_name()}")
-        
         yield event.plain_result(f"收到用户请求：{json.dumps(asdict(event.platform_meta))}")
-
