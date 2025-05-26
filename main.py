@@ -106,7 +106,7 @@ class ComfyUIPlugin(Star):
     async def comfyui_txt2img(self, event: AstrMessageEvent, prompt: str) -> MessageEventResult:
         await self.init_async()  # ← 确保初始化 WebSocket 和启动 worker
 
-        user_name = event.get_sender_name() if event.get_sender_name() else event.get_sender_id()
+        user_name = event.get_sender_name() if event.get_sender_name() else ''
         platform_name = event.get_platform_name()
         safe = platform_name == platform_type_constants.QQ
 
