@@ -12,6 +12,7 @@ from .comfyui_api import ComfyUI
 from .oss import upload_public_file
 from . import platform_type_constants
 from astrbot.core.message.message_event_result import MessageChain
+import astrbot.api.message_components as Comp
 
 # 有队列机制的版本
 
@@ -21,6 +22,7 @@ current_file_path = os.path.abspath(__file__)
 current_directory = os.path.dirname(current_file_path)
 # 图片生成存放目录
 img_path = os.path.join(current_directory, 'output', 'temp.png')
+
 
 @register("astrbot_plugin_comfyui", "guilty", "调用ComfyUI 服务进行文生图", "1.0.0",
           "https://github.com/GUILTYxC/astrbot_plugin_comfyui")
@@ -118,7 +120,9 @@ class ComfyUIPlugin(Star):
         logger.info(f"prompt:{prompt}")
 
         position = self.task_queue.qsize() + 1
-        yield event.plain_result(f"🎨 {user_name}，你的画图请求已加入队列，当前排队位置：{position}，请稍候...")
+
+        start_msg = event.make_result().at(event.get_sender_name(), event.get_sender_id()).message(f"你的画图请求已加入队列，当前排队位置：{position}，请稍候...")
+        await event.send(start_msg)
         logger.info("向队列中加入任务")
         await self.task_queue.put({
             "event": event,
