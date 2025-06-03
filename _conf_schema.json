@@ -2,7 +2,7 @@
     "server_address": {
         "description": "ComfyUI 服务端 IP、端口",
         "type": "string",
-        "hint": "请首先启动本地 ComfyUI 服务，并打开 ComfyUI 服务的开发者模式，当前插件会自动与 ComfyUI 服务进行 WebSocket 连接 ",
+        "hint": "本地或者远程服务器上启动的ComfyUI 服务，ip:port",
         "obvious_hint": true,
         "default": "127.0.0.1:8188"
     },
@@ -33,5 +33,11 @@
                 "default": "watermark,NSFW"
             }
         }
+    },
+    "comfyui_workflow_json": {
+        "description": "ComfyUI工作流导出的JSON内容",
+        "type": "string",
+        "editor_mode": true,
+        "default": ""
     }
 }
